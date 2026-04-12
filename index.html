@@ -1,0 +1,565 @@
+DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>воздушный чат</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root { --bg: #fff5eb; --surface: #ffede0; --border: #ffe0cc; --text: #4a2a10; --text-light: #b87a4a; --accent: #ff8c42; --bubble-user-text: #ffffff; --input-bg: #faf5ed; --font-size-base: 15px; --airway-bg: #fff5eb; }
+        body.dark { --bg: #151518; --surface: #2c2c2e; --border: #38383a; --text: #ffffff; --text-light: #8e8e93; --accent: #0a84ff; --bubble-user-text: #ffffff; --input-bg: #2c2c2e; --airway-bg: #151518; }
+        body { background: var(--bg); font-family: -apple-system, 'Helvetica Neue', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; transition: background 0.2s ease; font-size: var(--font-size-base); }
+        body.airway .messages-area { background: var(--airway-bg); padding: 16px; }
+        body.airway .message-row { max-width: 100%; margin: 4px 0; justify-content: flex-start !important; flex-direction: row !important; align-self: flex-start !important; }
+        body.airway .message-row.user { justify-content: flex-start !important; flex-direction: row !important; align-self: flex-start !important; }
+        body.airway .message-row.friend { justify-content: flex-start !important; flex-direction: row !important; align-self: flex-start !important; }
+        body.airway .bubble { background: transparent !important; backdrop-filter: none !important; box-shadow: none !important; border: none !important; padding: 2px 8px; border-radius: 0; display: inline-block; text-align: left !important; }
+        body.airway .user .bubble { color: var(--airway-user); }
+        body.airway .friend .bubble { color: var(--airway-friend); }
+        body.airway .message-meta { display: none; }
+        body.airway .message-actions { display: none !important; }
+        .top-bar { padding: 14px 20px; background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .room-info { flex: 1; }
+        .room-name { font-size: 20px; font-weight: 590; color: var(--text); }
+        .room-meta { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+        .header-buttons { display: flex; gap: 12px; align-items: center; }
+        .icon-btn { background: transparent; border: none; padding: 8px; cursor: pointer; border-radius: 40px; display: flex; align-items: center; justify-content: center; transition: all 0.1s ease; }
+        .icon-btn:active { background: var(--border); transform: scale(0.94); }
+        .icon-btn svg { width: 22px; height: 22px; stroke: var(--text-light); stroke-width: 1.2; fill: none; }
+        body.dark .sun-icon { display: none; } body.dark .moon-icon { display: block; } .sun-icon { display: block; } .moon-icon { display: none; }
+        .messages-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+        .message-row { display: flex; animation: fadeIn 0.15s ease; position: relative; align-items: center; max-width: 85%; }
+        .message-row.user { align-self: flex-end; flex-direction: row-reverse; margin-left: auto; justify-content: flex-end; }
+        .message-row.friend { align-self: flex-start; margin-right: auto; justify-content: flex-start; }
+        .message-content { display: flex; flex-direction: column; max-width: 100%; position: relative; }
+        .bubble { 
+            padding: 8px 16px; 
+            font-size: var(--font-size-base); 
+            line-height: 1.4; 
+            border-radius: 22px; 
+            word-break: break-word; 
+            transition: all 0.2s ease; 
+            display: inline-block; 
+            max-width: 100%; 
+            width: fit-content;
+            min-width: 48px;
+            text-align: left;
+            white-space: normal;
+        }
+        .user .bubble { background: rgba(255, 140, 66, 0.9); color: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 8px rgba(255, 140, 66, 0.3); }
+        .friend .bubble { background: rgba(255, 255, 255, 0.85); color: var(--text); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 0 6px rgba(255, 200, 150, 0.2); }
+        body.dark .user .bubble, body.dark .friend .bubble { background: rgba(255, 255, 255, 0.08); color: var(--text); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 8px rgba(100, 150, 255, 0.15); }
+        .bubble:active { transform: scale(0.98); }
+        .bubble-image { padding: 4px; max-width: 200px; border-radius: 18px; display: inline-block; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+        .bubble-image:active { transform: scale(0.98); }
+        .user .bubble-image { background: rgba(255, 140, 66, 0.9); }
+        .friend .bubble-image { background: rgba(255, 255, 255, 0.85); }
+        body.dark .user .bubble-image, body.dark .friend .bubble-image { background: rgba(255, 255, 255, 0.08); }
+        .bubble-image img { width: 100%; border-radius: 14px; display: block; }
+        .message-meta { font-size: 10px; color: var(--text-light); margin-top: 4px; display: flex; gap: 8px; align-items: center; }
+        .message-row.user .message-meta { justify-content: flex-end; flex-direction: row; }
+        .message-row.friend .message-meta { justify-content: flex-start; flex-direction: row; }
+        .message-actions {
+            display: flex;
+            gap: 4px;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.1s, visibility 0.1s;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .message-row.user .message-actions {
+            right: calc(100% + 6px);
+            flex-direction: row;
+        }
+        .message-row.friend .message-actions {
+            left: calc(100% + 6px);
+            flex-direction: row;
+        }
+        .message-row:hover .message-actions {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .action-btn {
+            background: transparent;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s ease;
+        }
+        .action-btn:active {
+            transform: scale(0.9);
+            opacity: 0.6;
+        }
+        .action-btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: var(--text-light);
+            stroke-width: 1.8;
+            fill: none;
+        }
+        body.dark .action-btn svg {
+            stroke: var(--text-light);
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .input-panel { background: var(--bg); border-top: 0.5px solid var(--border); padding: 10px 16px; display: flex; gap: 10px; align-items: flex-end; }
+        .input-wrapper { flex: 1; background: var(--input-bg); border-radius: 24px; border: 0.5px solid var(--border); transition: all 0.1s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02); }
+        .input-wrapper:focus-within { border-color: var(--accent); transform: scale(1.01); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+        .chat-input { width: 100%; border: none; background: transparent; font-size: 15px; padding: 10px 16px; outline: none; color: var(--text); resize: none; max-height: 120px; line-height: 1.4; font-family: inherit; }
+        .attach-btn, .send-action { background: transparent; border: none; width: 42px; height: 42px; border-radius: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s ease; }
+        .attach-btn:active, .send-action:active { transform: scale(0.92); background: var(--border); }
+        .attach-btn svg { width: 22px; height: 22px; stroke: var(--text-light); stroke-width: 1.5; fill: none; }
+        .send-action { background: var(--accent); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        .send-action:active { background: var(--accent); opacity: 0.85; }
+        .send-action svg { width: 18px; height: 18px; stroke: white; stroke-width: 2; fill: none; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.2); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal-card { background: #fff0e6; border-radius: 28px; padding: 28px 24px; width: 86%; max-width: 320px; text-align: center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
+        body.dark .modal-card { background: #2c2c2e; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
+        .modal-card h3 { font-size: 22px; font-weight: 590; margin-bottom: 24px; color: #4a2a10; }
+        body.dark .modal-card h3 { color: #ffffff; }
+        .modal-input { width: 100%; padding: 12px 16px; background: #faf5ed; border: 0.5px solid rgba(0, 0, 0, 0.1); border-radius: 40px; font-size: 16px; margin-bottom: 12px; color: #4a2a10; outline: none; transition: all 0.1s ease; }
+        body.dark .modal-input { background: #1c1c1e; border: 0.5px solid rgba(255, 255, 255, 0.1); color: #ffffff; }
+        .modal-input:focus { border-color: #ff8c42; transform: scale(1.01); }
+        body.dark .modal-input:focus { border-color: #0a84ff; }
+        .modal-btn { background: #ff8c42; border: none; padding: 12px; border-radius: 40px; width: 100%; color: white; font-size: 16px; font-weight: 590; cursor: pointer; transition: all 0.1s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        body.dark .modal-btn { background: #0a84ff; }
+        .modal-btn:active { transform: scale(0.96); opacity: 0.85; }
+        .settings-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.3); display: none; align-items: center; justify-content: center; z-index: 200; }
+        .settings-card { background: #fff0e6; border-radius: 28px; padding: 28px 24px; width: 86%; max-width: 320px; text-align: center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
+        body.dark .settings-card { background: #2c2c2e; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
+        .settings-card h3 { font-size: 20px; font-weight: 590; margin-bottom: 24px; color: #4a2a10; }
+        body.dark .settings-card h3 { color: #ffffff; }
+        .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 0.5px solid rgba(0, 0, 0, 0.08); }
+        body.dark .settings-row { border-bottom: 0.5px solid rgba(255, 255, 255, 0.1); }
+        .settings-label { font-size: 17px; font-weight: 500; color: #4a2a10; }
+        body.dark .settings-label { color: #ffffff; }
+        .settings-toggle { width: 44px; height: 24px; background: rgba(0, 0, 0, 0.15); border-radius: 24px; cursor: pointer; position: relative; transition: all 0.1s ease; }
+        body.dark .settings-toggle { background: rgba(255, 255, 255, 0.2); }
+        .settings-toggle.active { background: #ff8c42; }
+        body.dark .settings-toggle.active { background: #0a84ff; }
+        .settings-toggle::after { content: ''; width: 20px; height: 20px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: all 0.1s ease; }
+        .settings-toggle.active::after { left: 22px; }
+        .settings-toggle:active { transform: scale(0.95); }
+        .font-controls { display: flex; gap: 20px; align-items: center; }
+        .font-btn { background: rgba(0, 0, 0, 0.08); border: none; width: 40px; height: 40px; border-radius: 40px; font-size: 22px; cursor: pointer; color: #4a2a10; transition: all 0.1s ease; }
+        body.dark .font-btn { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
+        .font-btn:active { transform: scale(0.92); background: rgba(0, 0, 0, 0.15); }
+        .font-size-value { font-size: 18px; font-weight: 500; color: #4a2a10; min-width: 40px; text-align: center; }
+        body.dark .font-size-value { color: #ffffff; }
+        .close-settings { margin-top: 20px; background: #ff8c42; border: none; padding: 12px; border-radius: 40px; width: 100%; color: white; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.1s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        body.dark .close-settings { background: #0a84ff; }
+        .close-settings:active { transform: scale(0.96); opacity: 0.85; }
+        .airway-color-select { display: flex; gap: 12px; margin-top: 8px; justify-content: center; }
+        .airway-color { width: 30px; height: 30px; border-radius: 30px; cursor: pointer; border: 2px solid transparent; transition: all 0.1s ease; }
+        .airway-color.selected { border-color: #ff8c42; transform: scale(1.1); }
+        body.dark .airway-color.selected { border-color: #0a84ff; }
+        .airway-color:active { transform: scale(0.92); }
+        .empty-chat { text-align: center; margin-top: 60px; color: var(--text-light); }
+        #fileInput { display: none; }
+        
+        .confirm-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+        }
+        .confirm-card {
+            background: #fff0e6;
+            border-radius: 28px;
+            padding: 24px;
+            width: 86%;
+            max-width: 300px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+        body.dark .confirm-card { background: #2c2c2e; }
+        .confirm-card p { font-size: 16px; margin-bottom: 24px; color: #4a2a10; }
+        body.dark .confirm-card p { color: #ffffff; }
+        .confirm-buttons { display: flex; gap: 12px; justify-content: center; }
+        .confirm-btn { background: #ff8c42; border: none; padding: 10px 20px; border-radius: 40px; color: white; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.1s ease; }
+        body.dark .confirm-btn { background: #0a84ff; }
+        .confirm-btn.cancel { background: rgba(0, 0, 0, 0.15); color: #4a2a10; }
+        body.dark .confirm-btn.cancel { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
+        .confirm-btn:active { transform: scale(0.94); opacity: 0.85; }
+    </style>
+</head>
+<body>
+<div class="top-bar">
+    <div class="room-info">
+        <div class="room-name" id="roomName">тихий чат</div>
+        <div class="room-meta" id="roomStatus">ожидание входа</div>
+    </div>
+    <div class="header-buttons">
+        <button class="icon-btn" id="exitBtn" title="Выйти из чата"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg></button>
+        <button class="icon-btn" id="settingsBtn" title="Настройки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="icon-btn" id="themeBtn"><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    </div>
+</div>
+<div class="messages-area" id="messagesArea"><div class="empty-chat">🌿 здесь пока тишина</div></div>
+<div class="input-panel">
+    <button class="attach-btn" id="attachBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+    <input type="file" id="fileInput" accept="image/*">
+    <div class="input-wrapper"><textarea class="chat-input" id="messageInput" rows="1" placeholder="сообщение..."></textarea></div>
+    <button class="send-action" id="sendBtn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+</div>
+<div class="modal" id="modal"><div class="modal-card"><h3>войти в чат</h3><input type="text" class="modal-input" id="roomInput" placeholder="код комнаты"><input type="text" class="modal-input" id="nameInput" placeholder="ваше имя"><button class="modal-btn" id="joinBtn">начать →</button></div></div>
+<div class="settings-modal" id="settingsModal"><div class="settings-card"><h3>настройки</h3><div class="settings-row"><span class="settings-label">вибрация</span><div class="settings-toggle" id="vibrationToggle"></div></div><div class="settings-row"><span class="settings-label">шрифт</span><div class="font-controls"><button class="font-btn" id="fontMinus">−</button><span class="font-size-value" id="fontSizeValue">15</span><button class="font-btn" id="fontPlus">+</button></div></div><div class="settings-row"><span class="settings-label">режим AirWay</span><div class="settings-toggle" id="airwayToggle"></div></div><div id="airwayColorRow" style="display:none;"><div class="settings-label">цвет сообщений</div><div class="airway-color-select"><div class="airway-color" style="background:#1a1a1a;" data-color="black"></div><div class="airway-color" style="background:#0066cc;" data-color="blue"></div><div class="airway-color" style="background:#cc3333;" data-color="red"></div><div class="airway-color" style="background:#339933;" data-color="green"></div></div></div><button class="close-settings" id="closeSettingsBtn">закрыть</button></div></div>
+<script type="importmap">{ "imports": { "firebase/app": "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js", "firebase/database": "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js" } }</script>
+<script type="module">
+    import { initializeApp } from 'firebase/app';
+    import { getDatabase, ref, push, onValue, set, remove, update } from 'firebase/database';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDTWmu7mReenRJXFEw-Wxu70ZqfEVHu1ao",
+        authDomain: "chatlife-26930.firebaseapp.com",
+        databaseURL: "https://chatlife-26930-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "chatlife-26930",
+        storageBucket: "chatlife-26930.firebasestorage.app",
+        messagingSenderId: "329135378723",
+        appId: "1:329135378723:web:87a60044b3db7bf992bc96"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    let currentRoom = null, currentName = null, messages = [], messagesRef = null, colorsListener = null;
+    let vibrationEnabled = true, currentFontSize = 15;
+    let airwayEnabled = false, myColor = 'black';
+    let userColors = {};
+    let editingMessageId = null;
+    let originalSendSvg = null;
+
+    const modal = document.getElementById('modal'), roomInput = document.getElementById('roomInput'), nameInput = document.getElementById('nameInput'), joinBtn = document.getElementById('joinBtn');
+    const messagesArea = document.getElementById('messagesArea'), messageInput = document.getElementById('messageInput'), sendBtn = document.getElementById('sendBtn');
+    const roomNameSpan = document.getElementById('roomName'), roomStatusSpan = document.getElementById('roomStatus');
+    const attachBtn = document.getElementById('attachBtn'), fileInput = document.getElementById('fileInput'), themeBtn = document.getElementById('themeBtn'), exitBtn = document.getElementById('exitBtn');
+    const settingsBtn = document.getElementById('settingsBtn'), settingsModal = document.getElementById('settingsModal'), closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const vibrationToggle = document.getElementById('vibrationToggle'), fontMinus = document.getElementById('fontMinus'), fontPlus = document.getElementById('fontPlus'), fontSizeSpan = document.getElementById('fontSizeValue');
+    const airwayToggle = document.getElementById('airwayToggle'), airwayColorRow = document.getElementById('airwayColorRow');
+    const airwayColors = document.querySelectorAll('.airway-color');
+
+    function showConfirmDialog(message, onConfirm, onCancel) {
+        const dialog = document.createElement('div');
+        dialog.className = 'confirm-dialog';
+        dialog.innerHTML = `
+            <div class="confirm-card">
+                <p>${message}</p>
+                <div class="confirm-buttons">
+                    <button class="confirm-btn cancel" id="confirmCancel">Отмена</button>
+                    <button class="confirm-btn" id="confirmOk">Удалить</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(dialog);
+        dialog.querySelector('#confirmCancel').onclick = () => { dialog.remove(); if (onCancel) onCancel(); };
+        dialog.querySelector('#confirmOk').onclick = () => { dialog.remove(); if (onConfirm) onConfirm(); };
+    }
+
+    function startEditing(msgId, currentText) {
+        editingMessageId = msgId;
+        messageInput.value = currentText;
+        messageInput.focus();
+        originalSendSvg = sendBtn.innerHTML;
+        sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+        sendBtn.style.background = '#34c759';
+        autoResize();
+    }
+
+    function cancelEditing() {
+        editingMessageId = null;
+        messageInput.value = '';
+        if (originalSendSvg) sendBtn.innerHTML = originalSendSvg;
+        sendBtn.style.background = '';
+        originalSendSvg = null;
+        autoResize();
+    }
+
+    function loadSettings() {
+        let savedVibration = localStorage.getItem('vibration_enabled');
+        if (savedVibration !== null) vibrationEnabled = savedVibration === 'true';
+        let savedFontSize = localStorage.getItem('font_size');
+        if (savedFontSize !== null) { currentFontSize = parseInt(savedFontSize); currentFontSize = Math.min(24, Math.max(12, currentFontSize)); }
+        let savedAirway = localStorage.getItem('airway_enabled');
+        if (savedAirway !== null) airwayEnabled = savedAirway === 'true';
+        let savedMyColor = localStorage.getItem('my_color');
+        if (savedMyColor !== null) myColor = savedMyColor;
+        applySettings();
+    }
+
+    function applySettings() {
+        document.documentElement.style.setProperty('--font-size-base', currentFontSize + 'px');
+        if (vibrationToggle) vibrationEnabled ? vibrationToggle.classList.add('active') : vibrationToggle.classList.remove('active');
+        if (fontSizeSpan) fontSizeSpan.innerText = currentFontSize;
+        if (airwayToggle) airwayEnabled ? airwayToggle.classList.add('active') : airwayToggle.classList.remove('active');
+        if (airwayEnabled) document.body.classList.add('airway'); else document.body.classList.remove('airway');
+        if (airwayColorRow) airwayColorRow.style.display = airwayEnabled ? 'flex' : 'none';
+        if (currentRoom && currentName && airwayEnabled) {
+            const colorRef = ref(database, `rooms/${currentRoom}/users/${currentName}/color`);
+            set(colorRef, myColor);
+        }
+        airwayColors.forEach(c => {
+            if (c.getAttribute('data-color') === myColor) c.classList.add('selected');
+            else c.classList.remove('selected');
+        });
+        localStorage.setItem('vibration_enabled', vibrationEnabled);
+        localStorage.setItem('font_size', currentFontSize);
+        localStorage.setItem('airway_enabled', airwayEnabled);
+        localStorage.setItem('my_color', myColor);
+        renderAllMessages();
+    }
+
+    function setVibration(enabled) { vibrationEnabled = enabled; applySettings(); }
+    function changeFontSize(delta) { currentFontSize = Math.min(24, Math.max(12, currentFontSize + delta)); applySettings(); }
+    function setAirway(enabled) { airwayEnabled = enabled; applySettings(); }
+    function setMyColor(color) { myColor = color; applySettings(); }
+
+    function startColorsListener() {
+        if (!currentRoom || !airwayEnabled) return;
+        if (colorsListener) colorsListener();
+        const colorsRef = ref(database, `rooms/${currentRoom}/users`);
+        colorsListener = onValue(colorsRef, (snapshot) => {
+            const users = snapshot.val() || {};
+            userColors = {};
+            for (const [name, data] of Object.entries(users)) {
+                if (data.color) userColors[name] = data.color;
+                else userColors[name] = 'black';
+            }
+            renderAllMessages();
+        });
+    }
+
+    function stopColorsListener() {
+        if (colorsListener) { colorsListener(); colorsListener = null; }
+    }
+
+    settingsBtn.onclick = () => settingsModal.style.display = 'flex';
+    closeSettingsBtn.onclick = () => settingsModal.style.display = 'none';
+    vibrationToggle.onclick = () => setVibration(!vibrationEnabled);
+    fontMinus.onclick = () => changeFontSize(-1);
+    fontPlus.onclick = () => changeFontSize(1);
+    airwayToggle.onclick = () => setAirway(!airwayEnabled);
+    airwayColors.forEach(c => { c.onclick = () => setMyColor(c.getAttribute('data-color')); });
+    settingsModal.onclick = (e) => { if (e.target === settingsModal) settingsModal.style.display = 'none'; };
+
+    function fixMobilePadding() { if (document.activeElement === messageInput) { setTimeout(() => { messagesArea.scrollTop = messagesArea.scrollHeight; }, 50); } }
+    window.addEventListener('resize', fixMobilePadding);
+    window.addEventListener('focus', fixMobilePadding, true);
+
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;')); }
+    
+    function getColorForUser(username) {
+        if (!airwayEnabled) return '';
+        if (username === currentName) {
+            let colorMap = { black: '#1a1a1a', blue: '#0066cc', red: '#cc3333', green: '#339933' };
+            let darkColorMap = { black: '#ffffff', blue: '#66ccff', red: '#ff6666', green: '#66ff66' };
+            let isDark = document.body.classList.contains('dark');
+            return isDark ? darkColorMap[myColor] : colorMap[myColor];
+        } else {
+            let friendColor = userColors[username] || 'black';
+            let colorMap = { black: '#1a1a1a', blue: '#0066cc', red: '#cc3333', green: '#339933' };
+            let darkColorMap = { black: '#ffffff', blue: '#66ccff', red: '#ff6666', green: '#66ff66' };
+            let isDark = document.body.classList.contains('dark');
+            return isDark ? darkColorMap[friendColor] : colorMap[friendColor];
+        }
+    }
+
+    function addMessageToDOM(msg, msgId) {
+        const div = document.createElement('div');
+        div.className = `message-row ${msg.user === currentName ? 'user' : 'friend'}`;
+        div.setAttribute('data-id', msgId);
+        const time = new Date(msg.time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+        let editedMark = msg.edited ? ' (ред.)' : '';
+        let content = msg.type === 'image' ? `<div class="bubble-image"><img src="${msg.data}" alt="photo"></div>` : `<div class="bubble">${escapeHtml(msg.text)}</div>`;
+        
+        if (!airwayEnabled) {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            if (msg.user === currentName) {
+                contentDiv.innerHTML = `${content}<div class="message-meta"><span>${time}${editedMark}</span><span>${escapeHtml(msg.user)}</span></div>`;
+            } else {
+                contentDiv.innerHTML = `${content}<div class="message-meta"><span>${escapeHtml(msg.user)}</span><span>${time}${editedMark}</span></div>`;
+            }
+            
+            if (msg.user === currentName && msg.user !== 'чат') {
+                const actionsDiv = document.createElement('div');
+                              actionsDiv.className = 'message-actions';
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'action-btn';
+                editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 3l4 4L7 21H3v-4L17 3z"/><path d="M15 5l4 4"/></svg>`;
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    startEditing(msgId, msg.text);
+                };
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn';
+                deleteBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14"/><path d="M9 3h6"/></svg>`;
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    showConfirmDialog('Удалить сообщение для всех?', () => {
+                        const msgRef = ref(database, `rooms/${currentRoom}/messages/${msgId}`);
+                        remove(msgRef);
+                    });
+                };
+                
+                actionsDiv.appendChild(editBtn);
+                actionsDiv.appendChild(deleteBtn);
+                contentDiv.appendChild(actionsDiv);
+            }
+            div.appendChild(contentDiv);
+        } else {
+            let displayName = msg.user === currentName ? currentName : msg.user;
+            if (msg.user === 'чат') displayName = 'чат';
+            let colorStyle = msg.user !== 'чат' ? `style="color: ${getColorForUser(msg.user)};"` : '';
+            div.innerHTML = `<div class="bubble" style="padding:2px 8px; text-align:left;"><span ${colorStyle}>${escapeHtml(displayName)}</span>: ${escapeHtml(msg.text)}</div>`;
+            div.style.justifyContent = 'flex-start';
+            div.style.flexDirection = 'row';
+            div.style.alignSelf = 'flex-start';
+        }
+        
+        messagesArea.appendChild(div);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+        
+        if (vibrationEnabled && navigator.vibrate && msg.user !== 'чат') {
+            navigator.vibrate(30);
+        }
+    }
+
+    function renderAllMessages() {
+        if (!messagesArea) return;
+        if (messages.length === 0) { messagesArea.innerHTML = '<div class="empty-chat">🌿 здесь пока тишина</div>'; return; }
+        messagesArea.innerHTML = '';
+        messages.forEach(msg => addMessageToDOM(msg, msg.id));
+    }
+
+    function loadMessagesFromFirebase() {
+        if (!currentRoom) return;
+        if (messagesRef) messagesRef();
+        messagesRef = onValue(ref(database, `rooms/${currentRoom}/messages`), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                messages = Object.entries(data).map(([id, msg]) => ({ ...msg, id }));
+                messages.sort((a, b) => new Date(a.time) - new Date(b.time));
+            } else {
+                messages = [];
+            }
+            renderAllMessages();
+        });
+    }
+
+    async function addMessage(type, content) {
+        if (type === 'text' && !content.trim()) return;
+        const newMsg = { id: Date.now(), type: type, user: currentName, time: new Date().toISOString() };
+        if (type === 'text') newMsg.text = content.slice(0, 500);
+        else if (type === 'image') newMsg.data = content;
+        try { 
+            const msgsRef = ref(database, `rooms/${currentRoom}/messages`);
+            await push(msgsRef, newMsg);
+        } catch(e) { console.warn('Firebase error:', e); }
+    }
+
+    async function saveEditedMessage() {
+        if (!editingMessageId) return;
+        const newText = messageInput.value.trim();
+        if (newText && newText !== messages.find(m => m.id === editingMessageId)?.text) {
+            const msgRef = ref(database, `rooms/${currentRoom}/messages/${editingMessageId}`);
+            await update(msgRef, { text: newText, edited: true });
+        }
+        cancelEditing();
+    }
+
+    function exitChat() {
+        if (messagesRef) { messagesRef(); messagesRef = null; }
+        if (colorsListener) { colorsListener(); colorsListener = null; }
+        cancelEditing();
+        currentRoom = null; currentName = null; messages = [];
+        if (messagesArea) messagesArea.innerHTML = '<div class="empty-chat">✨ введите код комнаты и имя</div>';
+        if (roomNameSpan) roomNameSpan.innerText = 'тихий чат';
+        if (roomStatusSpan) roomStatusSpan.innerText = 'ожидание входа';
+        if (modal) modal.style.display = 'flex';
+        if (roomInput) roomInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (messageInput) messageInput.value = '';
+    }
+
+    function enterChat() {
+        const room = roomInput.value.trim(), name = nameInput.value.trim();
+        if (!room || !name) { alert('введите код комнаты и имя'); return; }
+        currentRoom = room; currentName = name;
+        localStorage.setItem('last_room', room); localStorage.setItem('last_name', name);
+        roomNameSpan.innerText = `#${room}`; roomStatusSpan.innerText = `вы как ${name}`;
+        modal.style.display = 'none';
+        loadMessagesFromFirebase();
+        startColorsListener();
+        messageInput.focus();
+    }
+
+    const lastRoom = localStorage.getItem('last_room'), lastName = localStorage.getItem('last_name');
+    if (lastRoom && lastName) { roomInput.value = lastRoom; nameInput.value = lastName; setTimeout(enterChat, 100); }
+
+    async function sendOrSave() {
+        if (!currentRoom || !currentName) { modal.style.display = 'flex'; return; }
+        if (editingMessageId) {
+            await saveEditedMessage();
+        } else {
+            const text = messageInput.value.trim();
+            if (text) { 
+                addMessage('text', text); 
+                messageInput.value = ''; 
+                messageInput.style.height = 'auto'; 
+                messageInput.focus();
+                autoResize();
+            }
+        }
+    }
+
+    function autoResize() { 
+        messageInput.style.height = 'auto'; 
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px'; 
+    }
+    messageInput.addEventListener('input', autoResize);
+
+    attachBtn.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { alert('выберите изображение'); return; }
+        if (!currentRoom || !currentName) { modal.style.display = 'flex'; fileInput.value = ''; return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => { addMessage('image', ev.target.result); fileInput.value = ''; };
+        reader.readAsDataURL(file);
+    };
+
+    joinBtn.onclick = enterChat;
+    sendBtn.onclick = sendOrSave;
+    exitBtn.onclick = exitChat;
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendOrSave();
+        }
+    });
+
+    if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
+    themeBtn.onclick = () => { document.body.classList.toggle('dark'); localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light'); applySettings(); };
+
+    loadSettings();
+</script>
+</body>
+</html>
