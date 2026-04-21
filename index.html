@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>воздушный чат</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root { --bg: #fef7e8; --surface: #fff5e6; --border: #f0e0cc; --text: #4a3a2a; --text-light: #8b7355; --accent: #e8a87c; --accent-dark: #d48c5b; --input-bg: #fffaf2; --font-size-base: 15px; --airway-bg: #fef7e8; }
+        body.dark { --bg: #1e2a2a; --surface: #2a3a3a; --border: #3a4a4a; --text: #e8e0d0; --text-light: #b0a898; --accent: #7cb8b8; --accent-dark: #5a9898; --input-bg: #2a3a3a; --airway-bg: #1e2a2a; }
+        body { background: var(--bg); font-family: -apple-system, 'Helvetica Neue', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; font-size: var(--font-size-base); position: relative; overflow: hidden; margin: 0; padding: 0; }
+        
+        .leaf-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+        .leaf { position: absolute; font-size: 42px; opacity: 0.12; transform: rotate(var(--rot, 0deg)); }
+        .leaf:nth-child(1) { top: 3%; left: 2%; --rot: 15deg; }
+        .leaf:nth-child(2) { top: 8%; right: 5%; --rot: -25deg; }
+        .leaf:nth-child(3) { top: 18%; left: 15%; --rot: 35deg; }
+        .leaf:nth-child(4) { top: 25%; right: 20%; --rot: -10deg; }
+        .leaf:nth-child(5) { top: 35%; left: 8%; --rot: 45deg; }
+        .leaf:nth-child(6) { top: 42%; right: 12%; --rot: -35deg; }
+        .leaf:nth-child(7) { top: 50%; left: 25%; --rot: 20deg; }
+        .leaf:nth-child(8) { top: 55%; right: 30%; --rot: -45deg; }
+        .leaf:nth-child(9) { top: 62%; left: 5%; --rot: 10deg; }
+        .leaf:nth-child(10) { top: 68%; right: 8%; --rot: -20deg; }
+        .leaf:nth-child(11) { top: 75%; left: 18%; --rot: 30deg; }
+        .leaf:nth-child(12) { top: 82%; right: 22%; --rot: -15deg; }
+        .leaf:nth-child(13) { top: 88%; left: 35%; --rot: 40deg; }
+        .leaf:nth-child(14) { top: 92%; right: 40%; --rot: -30deg; }
+        .leaf:nth-child(15) { top: 12%; left: 45%; --rot: 5deg; }
+        .leaf:nth-child(16) { top: 45%; left: 60%; --rot: -50deg; }
+        .leaf:nth-child(17) { top: 70%; left: 70%; --rot: 25deg; }
+        .leaf:nth-child(18) { top: 30%; right: 45%; --rot: -5deg; }
+        body.dark .leaf { opacity: 0.07; }
+        
+        .messages-area { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 80px 16px 90px 16px;
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+            position: relative; 
+            z-index: 2; 
+        }
+        
+        .top-bar { 
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(254, 247, 232, 0.5);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-bottom: 0.5px solid rgba(240, 224, 204, 0.5);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            z-index: 10;
+            padding: 12px 16px;
+        }
+        body.dark .top-bar {
+            background: rgba(30, 42, 42, 0.5);
+            border-bottom: 0.5px solid rgba(58, 74, 74, 0.5);
+        }
+        
+        .input-panel { 
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(254, 247, 232, 0.5);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-top: 0.5px solid rgba(240, 224, 204, 0.5);
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            padding: 10px 16px;
+            z-index: 10;
+        }
+        body.dark .input-panel {
+            background: rgba(30, 42, 42, 0.5);
+            border-top: 0.5px solid rgba(58, 74, 74, 0.5);
+        }
+        
+        .room-info { flex: 1; cursor: pointer; }
+        .room-name { 
+            font-size: 16px; 
+            font-weight: 590; 
+            color: var(--text); 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 4px;
+            background: rgba(139, 115, 85, 0.1);
+            padding: 6px 12px;
+            border-radius: 30px;
+            transition: all 0.1s ease;
+        }
+        .room-name:active { 
+            background: var(--border); 
+            transform: scale(0.96);
+        }
+        .room-name::after { content: '⌵'; font-size: 12px; opacity: 0.5; }
+        .room-meta { font-size: 10px; color: var(--text-light); margin-top: 2px; margin-left: 12px; }
+        
+        .header-buttons { display: flex; gap: 4px; align-items: center; }
+        
+        .icon-btn { background: rgba(139, 115, 85, 0.1); border: none; width: 36px; height: 36px; padding: 0; cursor: pointer; border-radius: 50%; transition: all 0.1s ease; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .icon-btn:active { background: var(--border); transform: scale(0.94); }
+        .icon-btn svg { width: 18px; height: 18px; stroke: var(--text-light); stroke-width: 1.5; fill: none; display: block; }
+        
+        .input-wrapper { flex: 1; background: var(--input-bg); border-radius: 28px; border: 0.5px solid var(--border); }
+        .input-wrapper:focus-within { border-color: var(--accent); }
+        .chat-input { width: 100%; border: none; background: transparent; font-size: 15px; padding: 10px 16px; outline: none; color: var(--text); resize: none; max-height: 100px; font-family: inherit; }
+        .attach-btn, .send-action { background: transparent; border: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+        .attach-btn:active, .send-action:active { transform: scale(0.92); background: var(--border); }
+        .attach-btn svg { width: 20px; height: 20px; stroke: var(--text-light); stroke-width: 1.5; }
+        .send-action { background: var(--accent); }
+        .send-action svg { width: 18px; height: 18px; stroke: white; stroke-width: 2; }
+        #fileInput { display: none; }
+        
+        .message-row { display: flex; animation: fadeIn 0.15s; position: relative; align-items: flex-start; max-width: 85%; }
+        .message-row.user { align-self: flex-end; flex-direction: row-reverse; margin-left: auto; }
+        .message-row.friend { align-self: flex-start; margin-right: auto; }
+        .message-content { display: flex; flex-direction: column; max-width: 100%; position: relative; }
+        .message-row.user .message-content { align-items: flex-end; }
+        .bubble { padding: 8px 16px; font-size: var(--font-size-base); line-height: 1.4; border-radius: 22px; word-break: break-word; display: inline-block; max-width: 100%; min-width: 48px; }
+        .user .bubble { background: rgba(232, 168, 124, 0.9); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .friend .bubble { background: rgba(255, 255, 245, 0.9); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        body.dark .user .bubble, body.dark .friend .bubble { background: rgba(255,255,240,0.08); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .bubble:active { transform: scale(0.98); }
+        .bubble-image { padding: 4px; max-width: 200px; border-radius: 18px; }
+        .bubble-image img { width: 100%; border-radius: 14px; display: block; }
+        .message-meta { font-size: 10px; color: var(--text-light); margin-top: 4px; display: flex; gap: 8px; }
+        .message-row.user .message-meta { justify-content: flex-end; }
+        .message-actions { display: flex; gap: 4px; position: absolute; top: 50%; transform: translateY(-50%); opacity: 0; visibility: hidden; z-index: 5; }
+        .message-row.user .message-actions { right: calc(100% + 6px); }
+        .message-row.friend .message-actions { left: calc(100% + 6px); }
+        .message-row:hover .message-actions { opacity: 1; visibility: visible; }
+        .action-btn { background: transparent; border: none; padding: 5px; cursor: pointer; border-radius: 20px; }
+        .action-btn:active { transform: scale(0.9); }
+        .action-btn svg { width: 16px; height: 16px; stroke: var(--text-light); stroke-width: 1.8; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal-card { background: var(--surface); border-radius: 36px; padding: 32px 28px; width: 86%; max-width: 340px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.15); position: relative; overflow: hidden; }
+        .modal-card::before { content: '🍁'; position: absolute; top: -15px; right: -15px; font-size: 80px; opacity: 0.1; transform: rotate(25deg); pointer-events: none; }
+        .modal-card::after { content: '🍁'; position: absolute; bottom: -20px; left: -20px; font-size: 90px; opacity: 0.08; transform: rotate(-15deg); pointer-events: none; }
+        body.dark .modal-card::before, body.dark .modal-card::after { opacity: 0.05; }
+        .modal-card h3 { font-size: 26px; font-weight: 600; margin-bottom: 24px; color: var(--text); letter-spacing: -0.3px; }
+        .modal-input { width: 100%; padding: 14px 18px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 44px; font-size: 16px; margin-bottom: 14px; color: var(--text); outline: none; transition: all 0.2s; }
+        .modal-input:focus { border-color: var(--accent); transform: scale(1.01); }
+        .modal-btn { background: var(--accent); border: none; padding: 14px; border-radius: 44px; width: 100%; color: white; font-size: 17px; font-weight: 600; cursor: pointer; margin-top: 6px; transition: all 0.1s; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .modal-btn:active { transform: scale(0.97); background: var(--accent-dark); }
+        
+        .modal-warning { background: rgba(232, 168, 124, 0.15); border-left: 3px solid var(--accent); padding: 10px 12px; border-radius: 14px; margin-top: 16px; text-align: left; }
+        .modal-warning-text { font-size: 12px; color: var(--accent-dark); font-weight: 500; line-height: 1.4; }
+        body.dark .modal-warning { background: rgba(124, 184, 184, 0.12); }
+        body.dark .modal-warning-text { color: var(--accent); }
+        
+        .room-popup { 
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            width: 260px;
+            background: rgba(254, 247, 232, 0.7);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 24px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+            border: 0.5px solid rgba(240, 224, 204, 0.5);
+            z-index: 150;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        body.dark .room-popup {
+            background: rgba(30, 42, 42, 0.7);
+            border: 0.5px solid rgba(58, 74, 74, 0.5);
+        }
+        .room-popup.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        .room-popup-header { padding: 14px 14px 8px 14px; font-size: 15px; font-weight: 500; color: var(--text-light); border-bottom: 0.5px solid var(--border); }
+        .room-popup-input { margin: 12px 12px; padding: 10px 12px; background: var(--input-bg); border: 0.5px solid var(--border); border-radius: 30px; font-size: 15px; color: var(--text); width: calc(100% - 24px); outline: none; }
+        .room-popup-input:focus { border-color: var(--accent); }
+        .room-popup-list { max-height: 240px; overflow-y: auto; margin: 0 8px 8px 8px; }
+        .room-popup-item { padding: 10px 12px; border-radius: 12px; cursor: pointer; font-size: 15px; color: var(--text); }
+        .room-popup-item:active { background: var(--border); }
+        .room-popup-close { padding: 12px; text-align: center; font-size: 14px; color: var(--text-light); border-top: 0.5px solid var(--border); cursor: pointer; }
+        .room-popup-close:active { background: var(--border); }
+        
+        .settings-popup { 
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            width: 280px;
+            background: rgba(254, 247, 232, 0.7);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 24px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+            border: 0.5px solid rgba(240, 224, 204, 0.5);
+            z-index: 150;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        body.dark .settings-popup {
+            background: rgba(30, 42, 42, 0.7);
+            border: 0.5px solid rgba(58, 74, 74, 0.5);
+        }
+        .settings-popup.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        .settings-popup-header { padding: 14px 14px 8px 14px; font-size: 15px; font-weight: 500; color: var(--text-light); border-bottom: 0.5px solid var(--border); }
+        .settings-popup-item { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid var(--border); }
+        .settings-popup-item:last-child { border-bottom: none; }
+        .settings-label { font-size: 15px; color: var(--text); }
+        .settings-toggle { width: 40px; height: 22px; background: rgba(0,0,0,0.15); border-radius: 22px; cursor: pointer; position: relative; }
+        body.dark .settings-toggle { background: rgba(255,255,255,0.2); }
+        .settings-toggle.active { background: var(--accent); }
+        .settings-toggle::after { content: ''; width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: all 0.1s; }
+        .settings-toggle.active::after { left: 20px; }
+        .font-controls { display: flex; gap: 16px; align-items: center; }
+        .font-btn { background: rgba(0,0,0,0.08); border: none; width: 32px; height: 32px; border-radius: 32px; font-size: 18px; cursor: pointer; color: var(--text); display: flex; align-items: center; justify-content: center; }
+        body.dark .font-btn { background: rgba(255,255,255,0.15); color: #fff; }
+        .font-btn:active { transform: scale(0.92); }
+        .font-size-value { font-size: 16px; font-weight: 500; color: var(--text); min-width: 30px; text-align: center; }
+        .airway-color-select { display: flex; gap: 10px; }
+        .airway-color { width: 26px; height: 26px; border-radius: 26px; cursor: pointer; border: 2px solid transparent; }
+        .airway-color.selected { border-color: var(--accent); transform: scale(1.05); }
+        .settings-popup-close { padding: 12px; text-align: center; font-size: 14px; color: var(--text-light); border-top: 0.5px solid var(--border); cursor: pointer; }
+        .settings-popup-close:active { background: var(--border); }
+        
+        .empty-chat { text-align: center; margin-top: 60px; color: var(--text-light); }
+        
+        .delete-popup { 
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            width: 200px;
+            background: rgba(254, 247, 232, 0.7);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 24px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+            border: 0.5px solid rgba(240, 224, 204, 0.5);
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.15s ease;
+            text-align: center;
+            overflow: hidden;
+        }
+        body.dark .delete-popup {
+            background: rgba(30, 42, 42, 0.7);
+            border: 0.5px solid rgba(58, 74, 74, 0.5);
+        }
+        .delete-popup.show { opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1); }
+        .delete-popup button { width: 100%; padding: 14px; font-size: 16px; border: none; background: transparent; cursor: pointer; transition: all 0.1s; color: var(--text); font-weight: 500; }
+        .delete-popup button:first-child { border-bottom: 0.5px solid var(--border); color: #ff3b30; }
+        body.dark .delete-popup button:first-child { color: #ff6666; }
+        .delete-popup button:active { background: var(--border); }
+        
+        body.airway .messages-area { background: var(--airway-bg); }
+        body.airway .message-row { max-width: 100%; margin: 2px 0; justify-content: flex-start !important; flex-direction: row !important; align-self: flex-start !important; }
+        body.airway .bubble { background: transparent !important; box-shadow: none !important; border: none !important; padding: 2px 6px; border-radius: 0; color: var(--text) !important; }
+        body.airway .message-meta, body.airway .message-actions { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="leaf-bg">
+    <div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div>
+    <div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div>
+    <div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div>
+    <div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div><div class="leaf">🍁</div>
+    <div class="leaf">🍁</div><div class="leaf">🍁</div>
+</div>
+
+<div class="top-bar">
+    <div class="room-info" id="roomInfo">
+        <div class="room-name" id="roomName">тихий чат</div>
+        <div class="room-meta" id="roomStatus">ожидание входа</div>
+    </div>
+    <div class="header-buttons">
+        <button class="icon-btn" id="exitBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+        <button class="icon-btn" id="settingsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="icon-btn" id="themeBtn">
+            <svg id="themeSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<div class="messages-area" id="messagesArea"><div class="empty-chat">🌿 здесь пока тишина</div></div>
+
+<div class="input-panel">
+    <button class="attach-btn" id="attachBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+    <input type="file" id="fileInput" accept="image/*">
+    <div class="input-wrapper"><textarea class="chat-input" id="messageInput" rows="1" placeholder="сообщение..."></textarea></div>
+    <button class="send-action" id="sendBtn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+</div>
+
+<div class="modal" id="modal">
+    <div class="modal-card">
+        <h3>войти в чат</h3>
+        <input type="text" class="modal-input" id="nameInput" placeholder="ваш ник" autocomplete="off">
+        <input type="text" class="modal-input" id="roomInput" placeholder="код комнаты" autocomplete="off">
+        <button class="modal-btn" id="joinBtn">начать →</button>
+        <div class="modal-warning">
+            <div class="modal-warning-text">⚠️ важно: не меняйте ник, иначе потеряете свои сообщения</div>
+        </div>
+    </div>
+</div>
+
+<div class="room-popup" id="roomPopup">
+    <div class="room-popup-header">выбрать комнату</div>
+    <input type="text" class="room-popup-input" id="popupRoomInput" placeholder="название" autocomplete="off">
+    <div class="room-popup-list" id="popupRoomList"></div>
+    <div class="room-popup-close" id="closePopupBtn">закрыть</div>
+</div>
+
+<div class="settings-popup" id="settingsPopup">
+    <div class="settings-popup-header">настройки</div>
+    <div class="settings-popup-item"><span class="settings-label">вибрация</span><div class="settings-toggle" id="vibrationToggle"></div></div>
+    <div class="settings-popup-item"><span class="settings-label">шрифт</span><div class="font-controls"><button class="font-btn" id="fontMinus">−</button><span class="font-size-value" id="fontSizeValue">15</span><button class="font-btn" id="fontPlus">+</button></div></div>
+    <div class="settings-popup-item"><span class="settings-label">режим AirWay</span><div class="settings-toggle" id="airwayToggle"></div></div>
+    <div class="settings-popup-item" id="airwayColorRow" style="display:none;"><span class="settings-label">цвет</span><div class="airway-color-select"><div class="airway-color" style="background:#1a1a1a;" data-color="black"></div><div class="airway-color" style="background:#0066cc;" data-color="blue"></div><div class="airway-color" style="background:#cc3333;" data-color="red"></div><div class="airway-color" style="background:#339933;" data-color="green"></div></div></div>
+    <div class="settings-popup-close" id="closeSettingsPopupBtn">закрыть</div>
+</div>
+
+<div class="delete-popup" id="deletePopup">
+    <button id="deleteConfirmBtn">Удалить</button>
+    <button id="deleteCancelBtn">Отмена</button>
+</div>
+
+<!-- Функция вибрации -->
+<script>
+    function vibrate(duration) {
+        if (window.AndroidVibrator) {
+            window.AndroidVibrator.vibrate(duration || 20);
+        }
+        if (navigator.vibrate) {
+            navigator.vibrate(duration || 20);
+        }
+    }
+</script>
+
+<script>
+    (function() {
+        function updateStatusBarColor() {
+            try {
+                var bgColor = window.getComputedStyle(document.body).backgroundColor;
+                if (window.AirChat && window.AirChat.updateStatusBar) {
+                    window.AirChat.updateStatusBar(bgColor);
+                }
+            } catch(e) {}
+        }
+        
+        setTimeout(updateStatusBarColor, 300);
+        
+        var themeBtn = document.getElementById('themeBtn');
+        if (themeBtn) {
+            themeBtn.addEventListener('click', function() {
+                setTimeout(updateStatusBarColor, 100);
+            });
+        }
+        
+        var observer = new MutationObserver(function() {
+            updateStatusBarColor();
+        });
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    })();
+</script>
+
+<script type="importmap">{ "imports": { "firebase/app": "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js", "firebase/database": "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js" } }</script>
+<script type="module">
+    import { initializeApp } from 'firebase/app';
+    import { getDatabase, ref, push, onValue, set, remove, update } from 'firebase/database';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDTWmu7mReenRJXFEw-Wxu70ZqfEVHu1ao",
+        authDomain: "chatlife-26930.firebaseapp.com",
+        databaseURL: "https://chatlife-26930-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "chatlife-26930",
+        storageBucket: "chatlife-26930.firebasestorage.app",
+        messagingSenderId: "329135378723",
+        appId: "1:329135378723:web:87a60044b3db7bf992bc96"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    let currentRoom = null, currentName = null, messages = [], messagesRef = null, colorsListener = null;
+    let vibrationEnabled = true, currentFontSize = 15;
+    let airwayEnabled = false, myColor = 'black';
+    let userColors = {};
+    let editingMessageId = null;
+    let originalSendSvg = null;
+    let savedRooms = JSON.parse(localStorage.getItem('room_history') || '[]');
+    let pendingDeleteMsgId = null;
+
+    const modal = document.getElementById('modal'), roomInput = document.getElementById('roomInput'), nameInput = document.getElementById('nameInput'), joinBtn = document.getElementById('joinBtn');
+    const messagesArea = document.getElementById('messagesArea'), messageInput = document.getElementById('messageInput'), sendBtn = document.getElementById('sendBtn');
+    const roomNameSpan = document.getElementById('roomName'), roomStatusSpan = document.getElementById('roomStatus');
+    const attachBtn = document.getElementById('attachBtn'), fileInput = document.getElementById('fileInput'), themeBtn = document.getElementById('themeBtn'), exitBtn = document.getElementById('exitBtn');
+    const settingsBtn = document.getElementById('settingsBtn'), roomInfo = document.getElementById('roomInfo');
+    const themeSvg = document.getElementById('themeSvg');
+    
+    const roomPopup = document.getElementById('roomPopup');
+    const popupRoomInput = document.getElementById('popupRoomInput');
+    const popupRoomList = document.getElementById('popupRoomList');
+    const closePopupBtn = document.getElementById('closePopupBtn');
+    
+    const settingsPopup = document.getElementById('settingsPopup');
+    const closeSettingsPopupBtn = document.getElementById('closeSettingsPopupBtn');
+    const vibrationToggle = document.getElementById('vibrationToggle');
+    const fontMinus = document.getElementById('fontMinus');
+    const fontPlus = document.getElementById('fontPlus');
+    const fontSizeSpan = document.getElementById('fontSizeValue');
+    const airwayToggle = document.getElementById('airwayToggle');
+    const airwayColorRow = document.getElementById('airwayColorRow');
+    const airwayColors = document.querySelectorAll('.airway-color');
+    
+    const deletePopup = document.getElementById('deletePopup');
+    const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+    const deleteCancelBtn = document.getElementById('deleteCancelBtn');
+
+    function updateThemeIcon() {
+        const isDark = document.body.classList.contains('dark');
+        if (isDark) {
+            themeSvg.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`;
+        } else {
+            themeSvg.innerHTML = `<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>`;
+        }
+    }
+
+    function saveRoomHistory() { localStorage.setItem('room_history', JSON.stringify(savedRooms)); }
+    function addRoomToHistory(room) { if (!savedRooms.includes(room)) { savedRooms.unshift(room); if (savedRooms.length > 5) savedRooms.pop(); saveRoomHistory(); } }
+    function showRoomPopup() { updatePopupList(); popupRoomInput.value = ''; roomPopup.classList.add('show'); popupRoomInput.focus(); }
+    function hideRoomPopup() { roomPopup.classList.remove('show'); }
+    function hideSettingsPopup() { settingsPopup.classList.remove('show'); }
+    function hideDeletePopup() { deletePopup.classList.remove('show'); pendingDeleteMsgId = null; }
+
+    function updatePopupList() {
+        popupRoomList.innerHTML = '';
+        if (savedRooms.length === 0) { const emptyDiv = document.createElement('div'); emptyDiv.style.cssText = 'padding:16px;text-align:center;color:var(--text-light);font-size:14px;'; emptyDiv.innerText = 'нет сохранённых комнат'; popupRoomList.appendChild(emptyDiv); }
+        else { savedRooms.forEach(room => { const item = document.createElement('div'); item.className = 'room-popup-item'; item.innerText = room; item.onclick = () => { vibrate(20); hideRoomPopup(); switchToRoom(room); }; popupRoomList.appendChild(item); }); }
+    }
+
+    function showDeletePopup(msgId) { pendingDeleteMsgId = msgId; deletePopup.classList.add('show'); }
+
+    function switchToRoom(newRoom) {
+        if (!newRoom || newRoom.trim() === '') return;
+        const cleanRoom = newRoom.trim();
+        if (currentRoom === cleanRoom) { hideRoomPopup(); return; }
+        if (messagesRef) { messagesRef(); messagesRef = null; }
+        if (colorsListener) { colorsListener(); colorsListener = null; }
+        cancelEditing();
+        currentRoom = cleanRoom;
+        addRoomToHistory(currentRoom);
+        roomNameSpan.innerText = `#${currentRoom}`;
+        if (currentName) roomStatusSpan.innerText = `вы как ${currentName}`;
+        else roomStatusSpan.innerText = `войдите, чтобы писать`;
+        loadMessagesFromFirebase();
+        if (airwayEnabled) startColorsListener();
+        messageInput.focus();
+        hideRoomPopup();
+    }
+
+    function loadSettings() {
+        let savedVibration = localStorage.getItem('vibration_enabled');
+        if (savedVibration !== null) vibrationEnabled = savedVibration === 'true';
+        let savedFontSize = localStorage.getItem('font_size');
+        if (savedFontSize !== null) { currentFontSize = parseInt(savedFontSize); currentFontSize = Math.min(24, Math.max(12, currentFontSize)); }
+        let savedAirway = localStorage.getItem('airway_enabled');
+        if (savedAirway !== null) airwayEnabled = savedAirway === 'true';
+        let savedMyColor = localStorage.getItem('my_color');
+        if (savedMyColor !== null) myColor = savedMyColor;
+        applySettings();
+    }
+
+    function applySettings() {
+        document.documentElement.style.setProperty('--font-size-base', currentFontSize + 'px');
+        if (vibrationToggle) vibrationEnabled ? vibrationToggle.classList.add('active') : vibrationToggle.classList.remove('active');
+        if (fontSizeSpan) fontSizeSpan.innerText = currentFontSize;
+        if (airwayToggle) airwayEnabled ? airwayToggle.classList.add('active') : airwayToggle.classList.remove('active');
+        if (airwayEnabled) document.body.classList.add('airway'); else document.body.classList.remove('airway');
+        if (airwayColorRow) airwayColorRow.style.display = airwayEnabled ? 'flex' : 'none';
+        if (currentRoom && currentName && airwayEnabled) set(ref(database, `rooms/${currentRoom}/users/${currentName}/color`), myColor);
+        airwayColors.forEach(c => { c.getAttribute('data-color') === myColor ? c.classList.add('selected') : c.classList.remove('selected'); });
+        localStorage.setItem('vibration_enabled', vibrationEnabled);
+        localStorage.setItem('font_size', currentFontSize);
+        localStorage.setItem('airway_enabled', airwayEnabled);
+        localStorage.setItem('my_color', myColor);
+        renderAllMessages();
+    }
+
+    function startColorsListener() {
+        if (!currentRoom || !airwayEnabled) return;
+        if (colorsListener) colorsListener();
+        const colorsRef = ref(database, `rooms/${currentRoom}/users`);
+        colorsListener = onValue(colorsRef, (snapshot) => {
+            const users = snapshot.val() || {};
+            userColors = {};
+            for (const [name, data] of Object.entries(users)) if (data.color) userColors[name] = data.color;
+            renderAllMessages();
+        });
+    }
+
+    // Обработчики с вибрацией
+    roomInfo.onclick = () => { vibrate(20); showRoomPopup(); };
+    closePopupBtn.onclick = () => { vibrate(20); hideRoomPopup(); };
+    settingsBtn.onclick = () => { vibrate(20); settingsPopup.classList.add('show'); };
+    closeSettingsPopupBtn.onclick = () => { vibrate(20); hideSettingsPopup(); };
+    exitBtn.onclick = () => { vibrate(20); exitChat(); };
+    
+    vibrationToggle.onclick = () => { vibrate(20); vibrationEnabled = !vibrationEnabled; applySettings(); };
+    fontMinus.onclick = () => { vibrate(20); currentFontSize = Math.min(24, Math.max(12, currentFontSize - 1)); applySettings(); };
+    fontPlus.onclick = () => { vibrate(20); currentFontSize = Math.min(24, Math.max(12, currentFontSize + 1)); applySettings(); };
+    airwayToggle.onclick = () => { vibrate(20); airwayEnabled = !airwayEnabled; applySettings(); };
+    
+    airwayColors.forEach(c => { 
+        c.onclick = () => { 
+            vibrate(20);
+            myColor = c.getAttribute('data-color'); 
+            applySettings(); 
+        }; 
+    });
+    
+    deleteConfirmBtn.onclick = () => { 
+        vibrate(20);
+        if (pendingDeleteMsgId) { 
+            remove(ref(database, `rooms/${currentRoom}/messages/${pendingDeleteMsgId}`)); 
+        } 
+        hideDeletePopup(); 
+    };
+    deleteCancelBtn.onclick = () => { 
+        vibrate(20);
+        hideDeletePopup(); 
+    };
+    
+    document.addEventListener('click', (e) => {
+        if (roomPopup.classList.contains('show') && !roomPopup.contains(e.target) && e.target !== roomInfo && !roomInfo.contains(e.target)) hideRoomPopup();
+        if (settingsPopup.classList.contains('show') && !settingsPopup.contains(e.target) && e.target !== settingsBtn && !settingsBtn.contains(e.target)) hideSettingsPopup();
+        if (deletePopup.classList.contains('show') && !deletePopup.contains(e.target)) hideDeletePopup();
+    });
+
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;')); }
+    
+    function getColorForUser(userName) {
+        if (!airwayEnabled) return '';
+        const colorMap = { black: '#1a1a1a', blue: '#0066cc', red: '#cc3333', green: '#339933' };
+        const darkColorMap = { black: '#ffffff', blue: '#66ccff', red: '#ff6666', green: '#66ff66' };
+        const isDark = document.body.classList.contains('dark');
+        if (userName === currentName) return isDark ? darkColorMap[myColor] : colorMap[myColor];
+        const friendColor = userColors[userName] || 'black';
+        return isDark ? darkColorMap[friendColor] : colorMap[friendColor];
+    }
+
+    function addMessageToDOM(msg, msgId) {
+        const isOwn = msg.userName === currentName;
+        const div = document.createElement('div');
+        div.className = `message-row ${isOwn ? 'user' : 'friend'}`;
+        div.setAttribute('data-id', msgId);
+        const time = new Date(msg.time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+        const editedMark = msg.edited ? ' (ред.)' : '';
+        const content = msg.type === 'image' ? `<div class="bubble-image"><img src="${msg.data}" alt="photo"></div>` : `<div class="bubble">${escapeHtml(msg.text)}</div>`;
+        
+        if (!airwayEnabled) {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            if (isOwn) contentDiv.innerHTML = `${content}<div class="message-meta"><span>${time}${editedMark}</span><span>${escapeHtml(msg.userName)}</span></div>`;
+            else contentDiv.innerHTML = `${content}<div class="message-meta"><span>${escapeHtml(msg.userName)}</span><span>${time}${editedMark}</span></div>`;
+            
+            if (isOwn && msg.userName !== 'чат') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                const editBtn = document.createElement('button');
+                editBtn.className = 'action-btn';
+                editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 3l4 4L7 21H3v-4L17 3z"/><path d="M15 5l4 4"/></svg>`;
+                editBtn.onclick = (e) => { e.stopPropagation(); startEditing(msgId, msg.text); };
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn';
+                deleteBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14"/><path d="M9 3h6"/></svg>`;
+                deleteBtn.onclick = (e) => { e.stopPropagation(); showDeletePopup(msgId); };
+                actionsDiv.appendChild(editBtn);
+                actionsDiv.appendChild(deleteBtn);
+                contentDiv.appendChild(actionsDiv);
+            }
+            div.appendChild(contentDiv);
+        } else {
+            let displayName = msg.userName;
+            if (msg.userName === 'чат') displayName = 'чат';
+            const colorStyle = msg.userName !== 'чат' ? `style="color: ${getColorForUser(msg.userName)};"` : '';
+            div.innerHTML = `<div class="bubble" style="padding:2px 8px;"><span ${colorStyle}>${escapeHtml(displayName)}</span>: ${escapeHtml(msg.text)}</div>`;
+            div.style.justifyContent = 'flex-start';
+            div.style.flexDirection = 'row';
+            div.style.alignSelf = 'flex-start';
+        }
+        messagesArea.appendChild(div);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+        if (vibrationEnabled && navigator.vibrate && msg.userName !== 'чат') navigator.vibrate(30);
+    }
+
+    function renderAllMessages() {
+        if (!messagesArea) return;
+        if (messages.length === 0) { messagesArea.innerHTML = '<div class="empty-chat">🌿 здесь пока тишина</div>'; return; }
+        messagesArea.innerHTML = '';
+        messages.forEach(msg => addMessageToDOM(msg, msg.id));
+    }
+
+    function loadMessagesFromFirebase() {
+        if (!currentRoom) return;
+        if (messagesRef) messagesRef();
+        messagesRef = onValue(ref(database, `rooms/${currentRoom}/messages`), (snapshot) => {
+            const data = snapshot.val();
+            if (data) { messages = Object.entries(data).map(([id, msg]) => ({ ...msg, id })); messages.sort((a,b) => new Date(a.time) - new Date(b.time)); }
+            else messages = [];
+            renderAllMessages();
+        });
+    }
+
+    async function addMessage(type, content) {
+        if (type === 'text' && !content.trim()) return;
+        const newMsg = { id: Date.now(), type, userName: currentName, time: new Date().toISOString() };
+        if (type === 'text') newMsg.text = content.slice(0, 500);
+        else if (type === 'image') newMsg.data = content;
+        try { await push(ref(database, `rooms/${currentRoom}/messages`), newMsg); } catch(e) {}
+    }
+
+    function startEditing(msgId, currentText) {
+        editingMessageId = msgId;
+        messageInput.value = currentText;
+        messageInput.focus();
+        originalSendSvg = sendBtn.innerHTML;
+        sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+        sendBtn.style.background = '#34c759';
+        autoResize();
+    }
+
+    function cancelEditing() {
+        editingMessageId = null;
+        messageInput.value = '';
+        if (originalSendSvg) sendBtn.innerHTML = originalSendSvg;
+        sendBtn.style.background = '';
+        originalSendSvg = null;
+        autoResize();
+    }
+
+    async function saveEditedMessage() {
+        if (!editingMessageId) return;
+        const newText = messageInput.value.trim();
+        if (newText && newText !== messages.find(m => m.id === editingMessageId)?.text) {
+            await update(ref(database, `rooms/${currentRoom}/messages/${editingMessageId}`), { text: newText, edited: true });
+        }
+        cancelEditing();
+    }
+
+    function exitChat() {
+        if (messagesRef) { messagesRef(); messagesRef = null; }
+        if (colorsListener) { colorsListener(); colorsListener = null; }
+        cancelEditing();
+        currentRoom = null; currentName = null; messages = [];
+        if (messagesArea) messagesArea.innerHTML = '<div class="empty-chat">✨ введите ник и комнату</div>';
+        if (roomNameSpan) roomNameSpan.innerText = 'тихий чат';
+        if (roomStatusSpan) roomStatusSpan.innerText = 'ожидание входа';
+        if (modal) modal.style.display = 'flex';
+        if (roomInput) roomInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (messageInput) messageInput.value = '';
+    }
+
+    function enterChat() {
+        const name = nameInput.value.trim(), room = roomInput.value.trim();
+        if (!name || !room) { alert('введите ник и код комнаты'); return; }
+        currentName = name;
+        currentRoom = room;
+        addRoomToHistory(currentRoom);
+        localStorage.setItem('last_name', name);
+        localStorage.setItem('last_room', room);
+        roomNameSpan.innerText = `#${currentRoom}`;
+        roomStatusSpan.innerText = `вы как ${currentName}`;
+        modal.style.display = 'none';
+        loadMessagesFromFirebase();
+        startColorsListener();
+        messageInput.focus();
+    }
+
+    const lastName = localStorage.getItem('last_name'), lastRoom = localStorage.getItem('last_room');
+    if (lastName && lastRoom) { nameInput.value = lastName; roomInput.value = lastRoom; setTimeout(enterChat, 100); }
+
+    async function sendOrSave() {
+        if (!currentRoom || !currentName) { modal.style.display = 'flex'; return; }
+        if (editingMessageId) await saveEditedMessage();
+        else {
+            const text = messageInput.value.trim();
+            if (text) { addMessage('text', text); messageInput.value = ''; messageInput.style.height = 'auto'; messageInput.focus(); autoResize(); }
+        }
+    }
+
+    function autoResize() { messageInput.style.height = 'auto'; messageInput.style.height = Math.min(messageInput.scrollHeight, 100) + 'px'; }
+    messageInput.addEventListener('input', autoResize);
+    attachBtn.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { alert('выберите изображение'); return; }
+        if (!currentRoom || !currentName) { modal.style.display = 'flex'; fileInput.value = ''; return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => { addMessage('image', ev.target.result); fileInput.value = ''; };
+        reader.readAsDataURL(file);
+    };
+    joinBtn.onclick = enterChat;
+    sendBtn.onclick = sendOrSave;
+    exitBtn.onclick = exitChat;
+    messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendOrSave(); } });
+
+    if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
+    updateThemeIcon();
+    themeBtn.onclick = () => { 
+        document.body.classList.toggle('dark'); 
+        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light'); 
+        updateThemeIcon();
+        applySettings(); 
+    };
+    loadSettings();
+</script>
+</body>
+</html>
